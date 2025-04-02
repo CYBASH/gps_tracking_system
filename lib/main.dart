@@ -1,10 +1,14 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:gps_tracking_system/settings.dart';
+import 'package:gps_tracking_system/splash_screen.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'dart:io';
+import 'login_page.dart';
+import 'splash_screen.dart';
 
-import 'gps_tracking_page.dart';
+import 'home_page.dart';
 import 'local_notifications.dart';
 
 final navigatorKey = GlobalKey<NavigatorState>();
@@ -15,21 +19,14 @@ FlutterLocalNotificationsPlugin();
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  await LocalNotifications.init();
-
-  // var initialNotification =
-  // await flutterLocalNotificationsPlugin.getNotificationAppLaunchDetails();
-  // if (initialNotification?.didNotificationLaunchApp == true) {
-  //   // LocalNotifications.onClickNotification.stream.listen((event) {
-  //   Future.delayed(Duration(seconds: 1), () {
-  //     // print(event);
-  //     navigatorKey.currentState!.pushNamed('/',
-  //         arguments: initialNotification?.notificationResponse?.payload);
-  //   });
-  // }
-
-  await Firebase.initializeApp();
-  await _checkLocationPermission();
+  try {
+    await Firebase.initializeApp();
+    await LocalNotifications.init();
+    await _checkLocationPermission();
+  } catch (e) {
+    print('Error initializing Firebase: $e');
+    runApp(const InitializationErrorScreen());
+  }
 }
 
 Future<void> _checkLocationPermission() async {
@@ -70,6 +67,7 @@ Future<void> _checkLocationPermission() async {
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -78,10 +76,16 @@ class MyApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
       ),
-      home: const MapPage(),
+      initialRoute: '/splash',
+      routes: {
+        '/splash': (context) => SplashScreen(),
+        '/home': (context) => const HomePage(),
+        '/login': (context) => AuthScreen(), // Move this here
+      },
     );
   }
 }
+
 
 class PermissionDeniedScreen extends StatelessWidget {
   const PermissionDeniedScreen({super.key});
@@ -107,6 +111,32 @@ class PermissionDeniedScreen extends StatelessWidget {
                 child: const Text('Exit'),
               ),
             ],
+          ),
+        ),
+      ),
+      initialRoute: '/splash',
+      routes: {
+        '/splash': (context) => SplashScreen(),
+        '/home': (context) => HomePage(),
+        '/login': (context) => AuthScreen(),
+        '/settings': (context) => SettingsPage()// ADD THIS LINE
+      },
+    );
+  }
+}
+
+class InitializationErrorScreen extends StatelessWidget {
+  const InitializationErrorScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      home: Scaffold(
+        body: Center(
+          child: Text(
+            'Failed to initialize Firebase. Please try again later.',
+            style: TextStyle(fontSize: 18, color: Colors.red),
+            textAlign: TextAlign.center,
           ),
         ),
       ),

@@ -1,30 +1,38 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:gps_tracking_system/settings.dart';
 import 'package:location/location.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:http/http.dart' as http;
 import 'dart:math';
 import 'local_notifications.dart';
+import 'package:geolocator/geolocator.dart'; // Add this import for distance calculation
 
 import 'consts.dart';
 
-class MapPage extends StatefulWidget {
-  const MapPage({super.key});
+class HomePage extends StatefulWidget {
+  const HomePage({super.key});
 
   @override
-  State<MapPage> createState() => _MapPageState();
+  State<HomePage> createState() => _HomePageState();
 }
 
-class _MapPageState extends State<MapPage> {
+class _HomePageState extends State<HomePage> {
   Timer? _timer;
   int _countdown = 45;
 
+  String username = "Loading...";
+
+
   @override
   void initState() {
+    fetchUserData();
     listenToNotifications();
     super.initState();
     getLocationUpdates();
@@ -33,6 +41,13 @@ class _MapPageState extends State<MapPage> {
       fetchLocationFromFirebase();
       _startCountdown();
     });
+  }
+
+  Future<void> fetchUserData() async {
+    User? user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      username = user.displayName!;
+    }
   }
 
   void _startCountdown() {
@@ -65,6 +80,16 @@ class _MapPageState extends State<MapPage> {
     });
   }
 
+  Future<void> _signOut() async {
+    final _auth = FirebaseAuth.instance;
+    await _auth.signOut();
+
+    Navigator.of(context).pushNamedAndRemoveUntil(
+      '/login',
+          (route) => false, // Remove all previous routes
+    );
+  }
+
   final DatabaseReference _dbRef = FirebaseDatabase.instance.ref();
 
   Location _locationController = new Location();
@@ -87,6 +112,57 @@ class _MapPageState extends State<MapPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      drawer: Drawer(
+        child: ListView(
+          padding: EdgeInsets.zero,
+          children: [
+            DrawerHeader(
+              decoration: BoxDecoration(
+                color: Colors.blue,
+              ),
+              child: Text(
+                "Welcome,\n$username",
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 24,
+                ),
+              ),
+            ),
+            // ListTile(
+            //   leading: Icon(Icons.home),
+            //   title: Text('Home'),
+            //   onTap: () {
+            //     Navigator.pop(context);
+            //   },
+            // ),
+            // ListTile(
+            //   leading: Icon(Icons.map),
+            //   title: Text('Map'),
+            //   onTap: () {
+            //     Navigator.pop(context);
+            //   },
+            // ),
+            ListTile(
+              leading: Icon(Icons.settings),
+              title: Text('Settings'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(context, MaterialPageRoute(builder: (context) => SettingsPage()));
+              },
+            ),
+            ListTile(
+              leading: Icon(Icons.exit_to_app),
+              title: Text('Logout'),
+              onTap: () {
+                Navigator.pop(context);
+                _signOut();
+                Navigator.pushNamed(context, '/login');
+
+              },
+            ),
+          ],
+        ),
+      ),
       body: _currentP == null ? const Center(child: Text("Loading..."))
           : Stack(
         children: [
@@ -231,12 +307,34 @@ class _MapPageState extends State<MapPage> {
           _currentVehicleP = LatLng(lat, lng);
           if (_currentP != null) {
             calculateETA(_currentP!, _currentVehicleP!);
+            checkProximity(); // Call the proximity check here
           }
         });
       }
     }).catchError((error) {
       print("Error fetching data: $error");
     });
+  }
+
+  void checkProximity() {
+    if (_currentP != null && _currentVehicleP != null) {
+      double distance = Geolocator.distanceBetween(
+        _currentP!.latitude,
+        _currentP!.longitude,
+        _currentVehicleP!.latitude,
+        _currentVehicleP!.longitude,
+      );
+
+      print("Distance: $distance");
+
+      if (distance <= 100) {
+        showSimpleNotification(
+          title: "Arrival Alert",
+          body: "The vehicle has arrived at your location.",
+          payload: "arrival_payload",
+        );
+      }
+    }
   }
 
   Future<void> calculateETA(LatLng start, LatLng end) async {
@@ -302,7 +400,9 @@ class _MapPageState extends State<MapPage> {
         channelDescription: 'gps_tracking_system',
         importance: Importance.max,
         priority: Priority.high,
-        ticker: 'ticker');
+        ticker: 'ticker',
+      playSound: true,
+      );
     const NotificationDetails notificationDetails =
     NotificationDetails(android: androidNotificationDetails);
     await _flutterLocalNotificationsPlugin

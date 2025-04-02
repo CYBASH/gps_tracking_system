@@ -42,6 +42,8 @@ dependencies:
   firebase_core: ^3.12.1
   firebase_auth: ^5.0.0
   firebase_database: ^11.3.4
+  cloud_firestore: ^5.6.5
+  geolocator: ^13.0.3
   awesome_notifications: ^0.8.2
   flutter_local_notifications: ^19.0.0
   flutter_timezone: ^1.0.7
@@ -76,6 +78,7 @@ flutter:
   assets:
     - assets/bus_icon.png
     - assets/home_icon.png
+    - assets/logo.png
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
