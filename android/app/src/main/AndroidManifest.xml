@@ -6,7 +6,7 @@
 
     <application
 
-        android:label="gps_tracking_system"
+        android:label="Ontrack"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity
